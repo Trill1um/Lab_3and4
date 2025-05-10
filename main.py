@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import platform, os
 
+#test
+
 def clear_console():
     if platform.system() == "Windows":
         os.system('cls')
