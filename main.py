@@ -177,48 +177,48 @@ def open_menu(device):
     key=""
     index=0
     while True:
+        print("\033[?25h", end="")
         clear_console()
-        device.show(index)
+        device.show(-1)
         print("\nActions (Enter \"exit\" to cancel action):")
-        print("1. Create File")
-        print("2. Create Folder")
-        print("3. Delete File/Folder")
+        print("1. Select File")
+        print("2. Create File")
+        print("3. Create Folder")
+        print("4. Delete File/Folder")
         print("0. Back\n")
-        print("Select an Action: ", end="")
         
-        choice=""
-        if device.files:
-            key=msvcrt.getch()
-            if key==b'\x00' or key==b'\xe0':
-                key=msvcrt.getch()
-                if key==b'H' and index > 0:
-                    index-=1
-                elif key==b'P' and index < len(device.files)-1:
-                    index+=1
-            elif key==b'\r' and device.files[index].file_type=="File folder":
-                open_menu(device.files[index])
-            else:
-                print(key.decode(), end="")
-                choice=key.decode()+input()
-                
-                if choice.isdigit() and int(choice) in range(4):
-                    choice=int(choice)
-                else:
-                    continue
-        else:
-            choice=input()
-            choice=int(choice) if choice.isdigit() and int(choice) in range(4) else ""
+        choice=device.validate_input(int, "Select an Action: ", ("include", range(5)))
         
         if choice==1:
+            while True:
+                clear_console()
+                device.show(index)
+                print("\nPress \"Esc\" to go back.\033[?25l")
+                if device.files:
+                    key=msvcrt.getch()
+                    if key==b'\x00' or key==b'\xe0':
+                        key=msvcrt.getch()
+                        if key==b'H' and index > 0:
+                            index-=1
+                        elif key==b'P' and index < len(device.files)-1:
+                            index+=1
+                    elif key==b'\r' and device.files[index].file_type=="File folder":
+                        open_menu(device.files[index])
+                        break
+                    elif key==b'\x1b':
+                        break
+                else:
+                    print("Nothing to Select.")
+        if choice==2:
             name=device.validate_input(str, "Input file name: ", ("exclude", [i.file_name for i in device.files]))
             type=device.validate_input(str, f"Input file type ({', '.join(device.FILE_TYPES.keys())}): ", ("include", device.FILE_TYPES))
             size=device.validate_input(int, "Input file size: ", ("greater",0))
             unit=device.validate_input(str, f"Input file unit ({', '.join(device.UNITS.keys()).title()}): ", ("include", device.UNITS.keys()))
             device.create_file(name, type, size, unit)
-        elif choice==2:
+        elif choice==3:
             name=device.validate_input(str, "Input folder name: ", ("exclude", [i.file_name for i in device.files]))
             device.create_folder(name)
-        elif choice==3:
+        elif choice==4:
             name=device.validate_input(str, "Input file name: ", ("include", [i.file_name for i in device.files]))
             device.delete_file(name)
         elif choice==0:
@@ -234,10 +234,3 @@ def initialize():
     return root
 
 open_menu(initialize())
-
-"""
-added input validation for open file, create folder, and delete file
-cleaned up show function
-edited validate_input function to handle specific conditions
-revamped the menu system to include easy navigation
-"""
