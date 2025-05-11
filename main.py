@@ -1,236 +1,189 @@
 from abc import ABC, abstractmethod
-import platform, os
 
-def clear_console():
-    os.system('cls' if platform.system()=="Windows" else 'clear')
+class StorageDevice(ABC):
+    def __init__(self, name, total_space_gb, used_space_gb=0):
+        self._name = name
+        self._total_space = total_space_gb
+        self._used_space = used_space_gb
+        self._files = []
 
-class Menu(ABC):
-    UNITS={
-        "TB": pow(1024, 4),
-        "GB": pow(1024, 3),
-        "MB": pow(1024, 2),
-        "KB": 1024,
-        "B": 1
-    }
-
-    FILE_TYPES={
-        "png": "PNG File",
-        "jpeg": "JPEG File",
-        "pdf": "PDF File",
-        "docx": "Word Document",
-        "mp4": "MP4 Video",
-        "mp3": "MP3 Audio",
-        "txt": "Text Document",
-    }
-
-    def __init__(self, name, parent=None, type="", size=0, unit=""):
-        self._files=[]
-        self._file_name=name
-        self._parent=parent # Subject for Removal
-        self._file_type=type
-        self._file_size=size
-        self._file_unit=unit
-
-    def validate_input(self, input_type, message: str, condition: tuple=None):
-        """
-        Validates user input based on the specified type and conditions.
-        Args:
-            input_type (str/int): The type of input expected ('int' for number, 'str' for string).
-            message (str): The message to display to the user.
-            condition (tuple): A tuple containing the condition type ('include' or 'exclude') and a list of valid values.
-        """
-        try:
-            user_input=input(message).strip()
-                
-            if user_input.lower()=="exit":
-                return None
-
-            if input_type==int:
-                if user_input.isdigit():
-                    user_input=int(user_input)
-                else:
-                    raise ValueError("Input must be an integer.")
-
-            if type(condition)!=tuple and condition != None and not condition[1]:
-                input("Error: Empty Selection.")
-                return
-            if condition:
-                if condition[0]=="include" and user_input not in condition[1]:
-                    raise ValueError("Input is not in one of the options.")
-                elif condition[0]=="exclude" and user_input in condition[1]:
-                    raise ValueError("Existing name found, please input a different name.")
-                elif condition[0]=="greater" and user_input <= condition[1]:
-                    raise ValueError(f"Inputs less than or equal to {condition[1]} is not allowed.")
-
-            return user_input
-
-        except ValueError as e:
-            print(f"\nError: {e}")
-            return self.validate_input(input_type, message, condition)
-
+    @property
+    def name(self):
+        return self._name
+    
+    @property
+    def total_space(self):
+        return self._total_space
+    
+    @property
+    def used_space(self):
+        return self._used_space
+    
     @property
     def files(self):
         return self._files
-
+    
+    @name.setter
+    def name(self, value):
+        self._name = value
+        
+    @total_space.setter
+    def total_space(self, value):
+        self._total_space = value
+    
+    @used_space.setter
+    def used_space(self, value):
+        self._used_space = value
+    
     @files.setter
     def files(self, value):
-        self._files=value
-
-    @property
-    def file_name(self):
-        return self._file_name
-
-    @file_name.setter
-    def file_name(self, value):
-        self._file_name=value
-
-    @property
-    def parent(self):
-        return self._parent
-
-    @parent.setter
-    def parent(self, value):
-        self._parent=value
-
-    @property
-    def file_type(self):
-        return self._file_type
-
-    @file_type.setter
-    def file_type(self, value):
-        self._file_type=value
-
-    @property
-    def file_size(self):
-        return self._file_size
-
-    @file_size.setter
-    def file_size(self, value):
-        self._file_size=value
-
-    @property
-    def file_unit(self):
-        return self._file_unit
-
-    @file_unit.setter
-    def file_unit(self, value):
-        self._file_unit=value
-
+        self._files = value
+    
     @abstractmethod
-    def show(self):
+    def save_file(self, file_name, size_gb):
         pass
 
     @abstractmethod
-    def create_file(self, name, type, size, unit):
+    def read_file(self, file_name):
         pass
 
     @abstractmethod
-    def create_folder(self, name):
+    def format_device(self):
         pass
 
-    @abstractmethod
-    def delete_file(self, name):
-        pass
+    def show_storage(self):
+        print(f"{self.name} Used: {self.used_space}GB / {self.total_space}GB")
 
-class SSD(Menu):
-    def __init__(self, name, parent=None, type="", size=0, unit=""):
-        super().__init__(name, parent, type, size, unit)
 
-    def show(self, selected=0):
-        if self.files:
-            headers=["Name", "Type", "Size"]
-            maximum=[len(i) for i in headers]
-            for i in self.files:
-                maximum[0]=max(maximum[0], len(i.file_name))
-                maximum[1]=max(maximum[1], len(i.file_type))
-                maximum[2]=max(maximum[2], len(str(i.file_size)))
-            maximum=[i + 4 for i in maximum]
+class SSD(StorageDevice):
+    def __init__(self, used_space_gb=0):
+        super().__init__("SSD", 512, used_space_gb)
 
-            print(f"{headers[0]:<{maximum[0]-1}}|{headers[1]:<{maximum[1]-1}}|{headers[2]:<{maximum[2]}}|")
-            for i,file in enumerate(self.files):
-                if i==selected:
-                    print("\033[48;2;88;84;84m", end="")
-                print(f"{file.file_name:<{maximum[0]}}{file.file_type:<{maximum[1]}}", end="")
-                if file.file_size > 0:
-                    print_size=str(file.file_size) + " " + file.file_unit
-                else:
-                    print_size=""
-                print(f"{print_size:<{maximum[2]}}")
-                print("\033[0m", end="")
+    def save_file(self, file_name, size_gb):
+        if self.used_space + size_gb <= self.total_space:
+            self.files.append(file_name)
+            self.used_space += size_gb
+            print(f"{file_name} saved to {self.name}.")
         else:
-            print("Empty Folder")
+            print("Not enough space in SSD.")
 
-    def create_file(self, name, type, size, unit):
-        self.files.append(SSD(name, None, type, size, unit))
+    def read_file(self, file_name):
+        if file_name in self.files:
+            print(f"Reading {file_name} from {self.name}...")
+        else:
+            print(f"{file_name} not found in {self.name}.")
 
-    def create_folder(self, name):
-        self.files.append(SSD(name, self, "File folder", 0, ""))
+    def format_device(self):
+        self.files.clear()
+        self.used_space = 0
+        print(f"{self.name} has been formatted.")
 
-    def delete_file(self, name):
-        for i, file in enumerate(self.files):
-            if file.file_name==name:
-                self.files.pop(i)
-                return
 
-import msvcrt
-def open_menu(device):
-    key=""
-    index=0
-    while True:
-        print("\033[?25h", end="")
-        clear_console()
-        device.show(-1)
-        print("\nActions (Enter \"exit\" to cancel action):")
-        print("1. Select File")
-        print("2. Create File")
-        print("3. Create Folder")
-        print("4. Delete File/Folder")
-        print("0. Back\n")
-        
-        choice=device.validate_input(int, "Select an Action: ", ("include", range(5)))
-        
-        if choice==1:
-            while True:
-                clear_console()
-                device.show(index)
-                print("\nPress \"Esc\" to go back.\033[?25l")
-                if device.files:
-                    key=msvcrt.getch()
-                    if key==b'\x00' or key==b'\xe0':
-                        key=msvcrt.getch()
-                        if key==b'H' and index > 0:
-                            index-=1
-                        elif key==b'P' and index < len(device.files)-1:
-                            index+=1
-                    elif key==b'\r' and device.files[index].file_type=="File folder":
-                        open_menu(device.files[index])
-                        break
-                    elif key==b'\x1b':
-                        break
-                else:
-                    print("Nothing to Select.")
-        if choice==2:
-            name=device.validate_input(str, "Input file name: ", ("exclude", [i.file_name for i in device.files]))
-            type=device.validate_input(str, f"Input file type ({', '.join(device.FILE_TYPES.keys())}): ", ("include", device.FILE_TYPES))
-            size=device.validate_input(int, "Input file size: ", ("greater",0))
-            unit=device.validate_input(str, f"Input file unit ({', '.join(device.UNITS.keys()).title()}): ", ("include", device.UNITS.keys()))
-            device.create_file(name, type, size, unit)
-        elif choice==3:
-            name=device.validate_input(str, "Input folder name: ", ("exclude", [i.file_name for i in device.files]))
-            device.create_folder(name)
-        elif choice==4:
-            name=device.validate_input(str, "Input file name: ", ("include", [i.file_name for i in device.files]))
-            device.delete_file(name)
-        elif choice==0:
-            return 
+class CompactDisk(StorageDevice):
+    def __init__(self, used_space_gb=0):
+        super().__init__("Compact Disk", 0.7, used_space_gb)
 
-def initialize():
-    root=SSD("C")
-    root.create_file("test", "png", 100000000, "MB")
-    root.create_file("test1", "jpeg", 20, "KB")
-    root.create_file("test2", "pdf", 30, "GB")
-    root.create_file("test3", "docx", 40, "TB")
-    root.create_folder("pictures")
-    return root
+    def save_file(self, file_name, size_gb):
+        if self.used_space + size_gb <= self.total_space:
+            self.files.append(file_name)
+            self.used_space += size_gb
+            print(f"{file_name} saved to {self.name}.")
+        else:
+            print("Not enough space on Compact Disk.")
 
-open_menu(initialize())
+    def read_file(self, file_name):
+        if file_name in self.files:
+            print(f"Reading {file_name} from {self.name}...")
+        else:
+            print(f"{file_name} not found in {self.name}.")
+
+    def format_device(self):
+        self.files.clear()
+        self.used_space = 0
+        print(f"{self.name} has been formatted.")
+
+
+class HardDrive(StorageDevice):
+    def __init__(self, used_space_gb=0):
+        super().__init__("Hard Drive", 1024, used_space_gb)
+
+    def save_file(self, file_name, size_gb):
+        if self.used_space + size_gb <= self.total_space:
+            self.files.append(file_name)
+            self.used_space += size_gb
+            print(f"{file_name} saved to {self.name}.")
+        else:
+            print("Not enough space on Hard Drive.")
+
+    def read_file(self, file_name):
+        if file_name in self.files:
+            print(f"Reading {file_name} from {self.name}...")
+        else:
+            print(f"{file_name} not found in {self.name}.")
+
+    def format_device(self):
+        self.files.clear()
+        self.used_space = 0
+        print(f"{self.name} has been formatted.")
+
+
+class FlashDrive(StorageDevice):
+    def __init__(self, used_space_gb=0):
+        super().__init__("Flash Drive", 64, used_space_gb)
+
+    def save_file(self, file_name, size_gb):
+        if self.used_space + size_gb <= self.total_space:
+            self.files.append(file_name)
+            self.used_space += size_gb
+            print(f"{file_name} saved to {self.name}.")
+        else:
+            print("Not enough space on Flash Drive.")
+
+    def read_file(self, file_name):
+        if file_name in self.files:
+            print(f"Reading {file_name} from {self.name}...")
+        else:
+            print(f"{file_name} not found in {self.name}.")
+
+    def format_device(self):
+        self.files.clear()
+        self.used_space = 0
+        print(f"{self.name} has been formatted.")
+
+
+def main():
+    ssd = SSD(used_space_gb=100)
+    cd = CompactDisk(used_space_gb=0.1)
+    hdd = HardDrive(used_space_gb=300)
+    flash = FlashDrive(used_space_gb=10)
+
+    print("\n--- SSD Test ---")
+    ssd.show_storage()
+    ssd.save_file("game.iso", 50)
+    ssd.read_file("game.iso")
+    ssd.format_device()
+    ssd.show_storage()
+
+    print("\n--- Compact Disk Test ---")
+    cd.show_storage()
+    cd.save_file("album.mp3", 0.2)
+    cd.read_file("album.mp3")
+    cd.format_device()
+    cd.show_storage()
+
+    print("\n--- Hard Drive Test ---")
+    hdd.show_storage()
+    hdd.save_file("movie.mp4", 200)
+    hdd.read_file("movie.mp4")
+    hdd.format_device()
+    hdd.show_storage()
+
+    print("\n--- Flash Drive Test ---")
+    flash.show_storage()
+    flash.save_file("doc.pdf", 1)
+    flash.read_file("doc.pdf")
+    flash.format_device()
+    flash.show_storage()
+
+if __name__ == "__main__":
+    main()
